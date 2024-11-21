@@ -32,25 +32,14 @@
 #define CS_PIN   10
 #define RST_PIN  18
 
-uint8_t mac_pasak[] = { 0x3c, 0x71, 0xbf, 0xff, 0x87, 0x80 };
-
 CRGB leds[NUM_LEDS];
 
 Adafruit_SSD1351 tft = Adafruit_SSD1351(SCREEN_WIDTH, SCREEN_HEIGHT, CS_PIN, DC_PIN, MOSI_PIN, SCLK_PIN, RST_PIN); 
 
 uint8_t redraw;
 unsigned long millis_redraw;
-unsigned long millis_espnow;
 
-typedef struct espnow_message_pasak {
-  uint8_t type;
-  int16_t motor_left;
-  int16_t motor_right;
-  uint8_t led;
-  uint8_t servo;
-} espnow_message_pasak;
-
-espnow_message_pasak message_pasak;
+extern uint8_t mac_pasak[6];
 
 typedef struct espnow_message_a {
   uint8_t type;
@@ -73,8 +62,6 @@ typedef enum {
 } Screen;
 
 Screen screen;
-
-uint16_t val;
 
 uint16_t now_rx_cnt;
 
@@ -137,14 +124,18 @@ void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
   FastLED.show();
 }
 
+/**
+ * Callback po poslani espnow
+ */
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  //Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
+  // podarilo se nebo ne?
   if(status == ESP_NOW_SEND_SUCCESS){
     espnow_cnt_del_ok++;
   } else {
     espnow_cnt_del_err++;
   }
-  
+
+  // uz neposilam a muzu posilat znova
   espnow_sending = 0;
 }
 
@@ -152,13 +143,12 @@ void setup() {
   now_rx_cnt = 0;
   redraw = 1;
   millis_redraw = 0;
-  millis_espnow = 0;
 
-espnow_sending = 0;
-espnow_cnt_tx_ok = 0;
-espnow_cnt_tx_err = 0;
-espnow_cnt_del_ok = 0;
-espnow_cnt_del_err = 0;
+  espnow_sending = 0;
+  espnow_cnt_tx_ok = 0;
+  espnow_cnt_tx_err = 0;
+  espnow_cnt_del_ok = 0;
+  espnow_cnt_del_err = 0;
 
   screen = SCREEN_PASAK;
 
@@ -218,7 +208,6 @@ espnow_cnt_del_err = 0;
 
   tft.fillRect(0, 0, 128, 96, BLACK);
 
-  val = 0;
 }
 
 /**
@@ -253,22 +242,24 @@ void initESPNow(){
   // registrace vysilaciho callbacku
   esp_now_register_send_cb(OnDataSent);
 
-  // Register peer
+  // registrace peer
   memcpy(peerInfo.peer_addr, mac_pasak, 6);
   peerInfo.channel = 10;
   peerInfo.encrypt = false;
-
-  // Add peer        
+     
   if (esp_now_add_peer(&peerInfo) != ESP_OK){
     Serial.println("Failed to add peer");
   }  
 }
 
+/**
+ * Hlavni smycka
+ */
 void loop() {
   unsigned long millis_act;
-  uint16_t aval;
   uint16_t i;
 
+  // nacitani analogovych os
   if(screen == SCREEN_JOYSTICK || screen == SCREEN_PASAK){
     for(i = 0; i < 4; i++){
       readAxis(&axis_list[i]);
@@ -294,6 +285,7 @@ void loop() {
     loopPasak();
   }
 
+/*
   if(screen == SCREEN_PASAK && millis_act - millis_espnow > 250){
     
 
@@ -321,6 +313,7 @@ message_pasak.type = 0x02;
       millis_espnow = millis_act;
     }
   }
+*/
 
   if(millis_act - millis_redraw > 500){
     millis_redraw = millis_act;
@@ -334,7 +327,6 @@ message_pasak.type = 0x02;
   log_d("Total PSRAM: %d", ESP.getPsramSize());
   log_d("Free PSRAM: %d", ESP.getFreePsram());  
 */
-  val++;
 
   if(redraw){
     if(screen == SCREEN_JOYSTICK) screenJoy();

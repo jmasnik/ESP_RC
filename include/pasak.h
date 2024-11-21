@@ -12,6 +12,7 @@ extern uint16_t espnow_cnt_tx_ok;
 extern uint16_t espnow_cnt_tx_err;
 extern uint16_t espnow_cnt_del_ok;
 extern uint16_t espnow_cnt_del_err;
+extern uint8_t espnow_sending;
 
 extern aAxis axis_list[4];
 
