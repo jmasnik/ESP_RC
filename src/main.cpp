@@ -58,10 +58,30 @@ uint8_t joy_b2;
 typedef enum {
   SCREEN_JOYSTICK,
   SCREEN_ESPNOW,
-  SCREEN_PASAK
+  SCREEN_PASAK,
+  SCREEN_HOME,
+  SCREEN_INFO
 } Screen;
 
 Screen screen;
+
+struct mMenuItem {
+  char name[20];
+  uint8_t ident;
+};
+
+struct mMenu {
+  mMenuItem item_list[10];
+  uint8_t item_count;
+  uint8_t sel_item;
+};
+
+mMenu menu_home;
+
+void addMenuItemStr(mMenu *menu, const char *str, uint8_t ident);
+void drawMenu(mMenu *menu);
+void menuUp(mMenu *menu);
+void menuDown(mMenu *menu);
 
 uint16_t now_rx_cnt;
 
@@ -92,6 +112,9 @@ GFXcanvas16 canvas(SCREEN_WIDTH, SCREEN_HEIGHT);
 
 void screenInfo();
 void screenValue();
+void screenHome();
+
+void loopHome();
 
 void screenImage();
 void screenJoy();
@@ -150,7 +173,7 @@ void setup() {
   espnow_cnt_del_ok = 0;
   espnow_cnt_del_err = 0;
 
-  screen = SCREEN_PASAK;
+  screen = SCREEN_HOME;
 
   // levej X
   axis_list[0].pin = PIN_JOY3;
@@ -208,6 +231,13 @@ void setup() {
 
   tft.fillRect(0, 0, 128, 96, BLACK);
 
+  menu_home.sel_item = 0;
+  menu_home.item_count = 0;
+  addMenuItemStr(&menu_home, "Pasak", SCREEN_PASAK);
+  addMenuItemStr(&menu_home, "ESPNow", SCREEN_ESPNOW);
+  addMenuItemStr(&menu_home, "Joystick", SCREEN_JOYSTICK);
+  addMenuItemStr(&menu_home, "Info", SCREEN_INFO);
+
 }
 
 /**
@@ -260,7 +290,7 @@ void loop() {
   uint16_t i;
 
   // nacitani analogovych os
-  if(screen == SCREEN_JOYSTICK || screen == SCREEN_PASAK){
+  if(screen == SCREEN_JOYSTICK || screen == SCREEN_PASAK || screen == SCREEN_HOME){
     for(i = 0; i < 4; i++){
       readAxis(&axis_list[i]);
       if(axis_list[i].changed){
@@ -271,19 +301,25 @@ void loop() {
 
   joy_b1 = digitalRead(PIN_JOY_B1);
   if(joy_b1 == 0){
+    if(screen == SCREEN_HOME){
+      screen = (Screen)menu_home.item_list[menu_home.sel_item].ident;
+    } else {
+      screen = SCREEN_HOME;
+    }
+    /*
     switch(screen){
       case SCREEN_JOYSTICK: screen = SCREEN_ESPNOW; break;
       case SCREEN_ESPNOW: screen = SCREEN_PASAK; break;
       case SCREEN_PASAK: screen = SCREEN_JOYSTICK; break;
     }
+    */
     redraw = 1;
   }
 
   millis_act = millis();
   
-  if(screen == SCREEN_PASAK){
-    loopPasak();
-  }
+  if(screen == SCREEN_PASAK) loopPasak();
+  if(screen == SCREEN_HOME) loopHome();
 
 /*
   if(screen == SCREEN_PASAK && millis_act - millis_espnow > 250){
@@ -332,7 +368,8 @@ message_pasak.type = 0x02;
     if(screen == SCREEN_JOYSTICK) screenJoy();
     if(screen == SCREEN_ESPNOW) screenValue();
     if(screen == SCREEN_PASAK) screenPasak();
-    //if(screen == 3) screenInfo();
+    if(screen == SCREEN_HOME) screenHome();
+    if(screen == SCREEN_INFO) screenInfo();
     //if(screen == 4) screenImage();
     redraw = 0;
   }
@@ -538,4 +575,59 @@ void screenValue(){
   canvas.print(str);
 
   displayCanvas();  
+}
+
+
+
+void addMenuItemStr(mMenu *menu, const char *str, uint8_t ident){
+  menu->item_list[menu->item_count].ident = ident;
+  strcpy(menu->item_list[menu->item_count].name, str);
+  menu->item_count++;
+}
+
+void drawMenu(mMenu *menu){
+  uint8_t i;
+
+  canvas.setFont(&FreeSans9pt7b);
+  canvas.setTextColor(WHITE);
+
+  // podbarveni zvoleneho
+  canvas.fillRect(0, menu->sel_item * 24, SCREEN_WIDTH, 24, COLOR_DARK_GRAY);
+
+  // textiky
+  for(i = 0; i < 4; i++){
+    canvas.setCursor(4, 17 + (i * 24));
+    canvas.print(menu->item_list[i].name);
+  }
+}
+
+void screenHome(){
+  canvas.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, BLACK);
+
+  drawMenu(&menu_home);
+
+  displayCanvas();
+}
+
+void loopHome(){
+  if(axis_list[3].val < -30){
+    menuDown(&menu_home);
+    redraw = 1;
+  }
+  if(axis_list[3].val > 30){
+    menuUp(&menu_home);
+    redraw = 1;
+  }
+}
+
+void menuUp(mMenu *menu){
+  if(menu->sel_item > 0){
+    menu->sel_item--;
+  }
+}
+
+void menuDown(mMenu *menu){
+  if(menu->sel_item < menu->item_count - 1){
+    menu->sel_item++;
+  }
 }
