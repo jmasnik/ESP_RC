@@ -21,8 +21,8 @@
 #define PIN_JOY2 5
 #define PIN_JOY3 6
 #define PIN_JOY4 7
-#define PIN_JOY_B1 16
-#define PIN_JOY_B2 15
+#define PIN_JOY_B1 15
+#define PIN_JOY_B2 16
 #define ADC_READ_CNT 3
 
 // The SSD1351 is connected like this (plus VCC plus GND)
@@ -60,7 +60,8 @@ typedef enum {
   SCREEN_ESPNOW,
   SCREEN_PASAK,
   SCREEN_HOME,
-  SCREEN_INFO
+  SCREEN_INFO,
+  SCREEN_IMAGE
 } Screen;
 
 Screen screen;
@@ -74,14 +75,18 @@ struct mMenu {
   mMenuItem item_list[10];
   uint8_t item_count;
   uint8_t sel_item;
+  uint8_t shift;
+  uint8_t per_page;
 };
 
 mMenu menu_home;
 
 void addMenuItemStr(mMenu *menu, const char *str, uint8_t ident);
-void drawMenu(mMenu *menu);
+
+void menuDraw(mMenu *menu);
 void menuUp(mMenu *menu);
 void menuDown(mMenu *menu);
+void menuInit(mMenu *menu);
 
 uint16_t now_rx_cnt;
 
@@ -109,17 +114,16 @@ uint16_t espnow_cnt_del_err;
 
 GFXcanvas16 canvas(SCREEN_WIDTH, SCREEN_HEIGHT);
 
-
 void screenInfo();
 void screenValue();
 void screenHome();
-
-void loopHome();
 
 void screenImage();
 void screenJoy();
 
 void readAxis(aAxis *axis);
+void readAllInputs();
+
 void drawAxis(uint16_t center_x, uint16_t center_y, aAxis *x, aAxis *y, uint16_t color);
 
 void initWifi();
@@ -166,6 +170,8 @@ void setup() {
   now_rx_cnt = 0;
   redraw = 1;
   millis_redraw = 0;
+  joy_b1 = 1;
+  joy_b2 = 1;
 
   espnow_sending = 0;
   espnow_cnt_tx_ok = 0;
@@ -231,12 +237,12 @@ void setup() {
 
   tft.fillRect(0, 0, 128, 96, BLACK);
 
-  menu_home.sel_item = 0;
-  menu_home.item_count = 0;
+  menuInit(&menu_home);
   addMenuItemStr(&menu_home, "Pasak", SCREEN_PASAK);
   addMenuItemStr(&menu_home, "ESPNow", SCREEN_ESPNOW);
   addMenuItemStr(&menu_home, "Joystick", SCREEN_JOYSTICK);
   addMenuItemStr(&menu_home, "Info", SCREEN_INFO);
+  addMenuItemStr(&menu_home, "Image", SCREEN_IMAGE);
 
 }
 
@@ -289,6 +295,8 @@ void loop() {
   unsigned long millis_act;
   uint16_t i;
 
+  screenHome();
+
   // nacitani analogovych os
   if(screen == SCREEN_JOYSTICK || screen == SCREEN_PASAK || screen == SCREEN_HOME){
     for(i = 0; i < 4; i++){
@@ -319,7 +327,6 @@ void loop() {
   millis_act = millis();
   
   if(screen == SCREEN_PASAK) loopPasak();
-  if(screen == SCREEN_HOME) loopHome();
 
 /*
   if(screen == SCREEN_PASAK && millis_act - millis_espnow > 250){
@@ -368,9 +375,7 @@ message_pasak.type = 0x02;
     if(screen == SCREEN_JOYSTICK) screenJoy();
     if(screen == SCREEN_ESPNOW) screenValue();
     if(screen == SCREEN_PASAK) screenPasak();
-    if(screen == SCREEN_HOME) screenHome();
-    if(screen == SCREEN_INFO) screenInfo();
-    //if(screen == 4) screenImage();
+
     redraw = 0;
   }
 
@@ -408,10 +413,11 @@ void readAxis(aAxis *axis){
   }
 }
 
+/**
+ * Nacteni MAC adresy
+ */
 void readMacAddress(){
-
   strcpy(mac_address, "");
-
   uint8_t baseMac[6];
   esp_err_t ret = esp_wifi_get_mac(WIFI_IF_STA, baseMac);
   if (ret == ESP_OK) {
@@ -526,11 +532,28 @@ void screenInfo(){
   canvas.print(mac_address);
 
   displayCanvas();
+
+  while(1){
+    readAllInputs();
+    if(joy_b1 == 0){
+      return;
+    }
+  }  
 }
 
+/**
+ * Obrazovka s obrazkem
+ */
 void screenImage(){
+  // vykreslime obrazek
   tft.drawRGBBitmap(0, 0, img_motorka, 128, 96);
-  //displayCanvas();
+
+  while(1){
+    readAllInputs();
+    if(joy_b1 == 0){
+      return;
+    }
+  }
 }
 
 /**
@@ -577,57 +600,133 @@ void screenValue(){
   displayCanvas();  
 }
 
-
-
+/**
+ * Pridani polozky do menu
+ */
 void addMenuItemStr(mMenu *menu, const char *str, uint8_t ident){
   menu->item_list[menu->item_count].ident = ident;
   strcpy(menu->item_list[menu->item_count].name, str);
   menu->item_count++;
 }
 
-void drawMenu(mMenu *menu){
+/**
+ * Vykresleni menu
+ */
+void menuDraw(mMenu *menu){
   uint8_t i;
+  uint8_t see_from;
+  uint8_t see_to;
 
+  // font a barva pisma
   canvas.setFont(&FreeSans9pt7b);
   canvas.setTextColor(WHITE);
 
+  // co ted vidim
+  see_from = menu->shift;
+  see_to = menu->shift + menu->per_page - 1;
+
+  // nemusim to soupnout?
+  if(menu->sel_item > see_to){
+    menu->shift += menu->sel_item - see_to;
+  }
+  if(menu->sel_item < see_from){
+    menu->shift -= see_from - menu->sel_item;
+  }
+
   // podbarveni zvoleneho
-  canvas.fillRect(0, menu->sel_item * 24, SCREEN_WIDTH, 24, COLOR_DARK_GRAY);
+  canvas.fillRect(0, (menu->sel_item - menu->shift) * 24, SCREEN_WIDTH, 24, COLOR_DARK_GRAY);
 
   // textiky
-  for(i = 0; i < 4; i++){
+  for(i = 0; i < menu->per_page; i++){
     canvas.setCursor(4, 17 + (i * 24));
-    canvas.print(menu->item_list[i].name);
+    canvas.print(menu->item_list[i + menu->shift].name);
   }
 }
 
+/**
+ * Uvodni obrazovka
+ */
 void screenHome(){
-  canvas.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, BLACK);
+  unsigned long millis_act;
+  unsigned long millis_last_input;
 
-  drawMenu(&menu_home);
+  millis_last_input = 0;
 
-  displayCanvas();
+  while(1){
+    millis_act = millis();
+    readAllInputs();
+
+    // nebudem to ovladat az tak rychle
+    if(millis_act - millis_last_input > 250){
+      if(axis_list[3].val < -30){
+        menuDown(&menu_home);
+        redraw = 1;
+        millis_last_input = millis_act;
+      }
+      if(axis_list[3].val > 30){
+        menuUp(&menu_home);
+        redraw = 1;
+        millis_last_input = millis_act;
+      }
+    }
+
+    if(joy_b2 == 0){
+      if((Screen)menu_home.item_list[menu_home.sel_item].ident == SCREEN_IMAGE) screenImage();
+      if((Screen)menu_home.item_list[menu_home.sel_item].ident == SCREEN_INFO) screenInfo();
+    }
+
+    // prekresleni obrazovky
+    if(redraw == 1){
+      canvas.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, BLACK);
+      menuDraw(&menu_home);
+      displayCanvas();
+    }
+  }
 }
 
-void loopHome(){
-  if(axis_list[3].val < -30){
-    menuDown(&menu_home);
-    redraw = 1;
+/**
+ * Nacte vsechny vstupy
+ */
+void readAllInputs(){
+  uint16_t i;
+
+  // nacitani analogovych os
+  for(i = 0; i < 4; i++){
+    readAxis(&axis_list[i]);
+    //if(axis_list[i].changed){
+    //  redraw = 1;
+    //}
   }
-  if(axis_list[3].val > 30){
-    menuUp(&menu_home);
-    redraw = 1;
-  }
+
+  // tlacitka
+  joy_b1 = digitalRead(PIN_JOY_B1);
+  joy_b2 = digitalRead(PIN_JOY_B2);
 }
 
+/**
+ * Posun v menu nahoru
+ */
 void menuUp(mMenu *menu){
   if(menu->sel_item > 0){
     menu->sel_item--;
   }
 }
 
+/**
+ * Posun v menu dolu
+ */
 void menuDown(mMenu *menu){
   if(menu->sel_item < menu->item_count - 1){
     menu->sel_item++;
   }
+}
+
+/**
+ * Inicializace menu
+ */
+void menuInit(mMenu *menu){
+  menu->item_count = 0;
+  menu->per_page = 4;
+  menu->shift = 0;
+  menu->sel_item = 0;
 }
