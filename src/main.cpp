@@ -134,19 +134,22 @@ void readMacAddress();
 void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len);
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status);
 
+/**
+ * Callback po prijmu espnow
+ */
 void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
   
   now_rx_cnt++;
 
   if(len == sizeof(now_message) && incomingData[0] == 0x01){
     memcpy(&now_message, incomingData, sizeof(now_message));
+    redraw = 1;
   }
 
-  //log_d("Bytes received");
-
+  // bliknuti LED
   leds[0] = CRGB::Purple;
   FastLED.show();
-  delay(200);
+  delay(100);
   leds[0] = CRGB::Black;
   FastLED.show();
 }
@@ -166,6 +169,9 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   espnow_sending = 0;
 }
 
+/**
+ * Setup
+ */
 void setup() {
   now_rx_cnt = 0;
   redraw = 1;
@@ -292,93 +298,7 @@ void initESPNow(){
  * Hlavni smycka
  */
 void loop() {
-  unsigned long millis_act;
-  uint16_t i;
-
   screenHome();
-
-  // nacitani analogovych os
-  if(screen == SCREEN_JOYSTICK || screen == SCREEN_PASAK || screen == SCREEN_HOME){
-    for(i = 0; i < 4; i++){
-      readAxis(&axis_list[i]);
-      if(axis_list[i].changed){
-        redraw = 1;
-      }
-    }
-  }
-
-  joy_b1 = digitalRead(PIN_JOY_B1);
-  if(joy_b1 == 0){
-    if(screen == SCREEN_HOME){
-      screen = (Screen)menu_home.item_list[menu_home.sel_item].ident;
-    } else {
-      screen = SCREEN_HOME;
-    }
-    /*
-    switch(screen){
-      case SCREEN_JOYSTICK: screen = SCREEN_ESPNOW; break;
-      case SCREEN_ESPNOW: screen = SCREEN_PASAK; break;
-      case SCREEN_PASAK: screen = SCREEN_JOYSTICK; break;
-    }
-    */
-    redraw = 1;
-  }
-
-  millis_act = millis();
-  
-  if(screen == SCREEN_PASAK) loopPasak();
-
-/*
-  if(screen == SCREEN_PASAK && millis_act - millis_espnow > 250){
-    
-
-    // Send message via ESP-NOW
-    if(espnow_sending == 0){
-
-message_pasak.type = 0x02;
-    message_pasak.servo = 50;
-    message_pasak.led = 1;
-    message_pasak.motor_left = map(axis_list[1].val, -100, 100, -255, 255);
-    message_pasak.motor_right = map(axis_list[3].val, -100, 100, -255, 255);
-
-      espnow_sending = 1;
-      esp_err_t result = esp_now_send(mac_pasak, (uint8_t *)&message_pasak, sizeof(message_pasak));
-      
-      if (result == ESP_OK) {
-        espnow_cnt_tx_ok++;
-        //Serial.println("Sent with success");
-      }
-      else {
-        espnow_cnt_tx_err++;
-        //Serial.println("Error sending the data");
-      }    
-
-      millis_espnow = millis_act;
-    }
-  }
-*/
-
-  if(millis_act - millis_redraw > 500){
-    millis_redraw = millis_act;
-    redraw = 1;
-  }
-  //Serial.println("Ahoj!");
-
-/*
-  log_d("Total heap: %d", ESP.getHeapSize());
-  log_d("Free heap: %d", ESP.getFreeHeap());
-  log_d("Total PSRAM: %d", ESP.getPsramSize());
-  log_d("Free PSRAM: %d", ESP.getFreePsram());  
-*/
-
-  if(redraw){
-    if(screen == SCREEN_JOYSTICK) screenJoy();
-    if(screen == SCREEN_ESPNOW) screenValue();
-    if(screen == SCREEN_PASAK) screenPasak();
-
-    redraw = 0;
-  }
-
 }
 
 /**
@@ -428,62 +348,86 @@ void readMacAddress(){
   }
 }
 
-
-
+/**
+ * Testovani joysticku
+ */
 void screenJoy(){
   uint8_t w;
+  uint16_t i;
 
-  canvas.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, BLACK);
-  canvas.setFont(&FreeSans9pt7b);
-  canvas.setTextColor(WHITE);
+  while(1){
+    readAllInputs();
+    
+    if(joy_b1 == 0){
+      return;
+    }
 
-  canvas.fillRect(0, 0, SCREEN_WIDTH, 18, DBLUE);
-  canvas.setCursor(4, 14);
-  canvas.print("Joystick");
+    // zmenila se hodnota osy?
+    for(i = 0; i < 4; i++){
+      if(axis_list[i].changed){
+        // pokud ano tak prekresleni
+        redraw = 1;
+      }
+    }
+
+    if(redraw == 1){
+      canvas.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, BLACK);
+      canvas.setFont(&FreeSans9pt7b);
+      canvas.setTextColor(WHITE);
+
+      canvas.fillRect(0, 0, SCREEN_WIDTH, 18, DBLUE);
+      canvas.setCursor(4, 14);
+      canvas.print("Joystick");
 
 
-  canvas.setFont(&Roboto_10);
+      canvas.setFont(&Roboto_10);
 
-  /*
-  canvas.setCursor(4, 36);
-  canvas.print(axis_list[0].val);
+      /*
+      canvas.setCursor(4, 36);
+      canvas.print(axis_list[0].val);
 
-  canvas.setCursor(4, 56);
-  canvas.print(axis_list[1].val);
+      canvas.setCursor(4, 56);
+      canvas.print(axis_list[1].val);
 
-  */
+      */
 
-  drawAxis(32, 49, &axis_list[0], &axis_list[1], DBLUE);
-  drawAxis(96, 49, &axis_list[2], &axis_list[3], DBLUE);
+      drawAxis(32, 49, &axis_list[0], &axis_list[1], DBLUE);
+      drawAxis(96, 49, &axis_list[2], &axis_list[3], DBLUE);
 
-  /*
-  canvas.setCursor(64, 36);
-  canvas.print(axis_list[2].val);
+      /*
+      canvas.setCursor(64, 36);
+      canvas.print(axis_list[2].val);
 
-  canvas.setCursor(64, 56);
-  canvas.print(axis_list[3].val);
+      canvas.setCursor(64, 56);
+      canvas.print(axis_list[3].val);
 
-  canvas.setCursor(4, 76);
-  canvas.print(joy_b1);
+      canvas.setCursor(4, 76);
+      canvas.print(joy_b1);
 
-  canvas.setCursor(64, 76);
-  canvas.print(axis_list[2].val_a);
-  canvas.setCursor(96, 76);
-  canvas.print(axis_list[3].val_a);
-  */
-  
-  displayCanvas();
+      canvas.setCursor(64, 76);
+      canvas.print(axis_list[2].val_a);
+      canvas.setCursor(96, 76);
+      canvas.print(axis_list[3].val_a);
+      */
+      
+      displayCanvas();
 
-  /*
-  leds[0].setHSV(
-    map(axis_list[0].val, -100, 100, 0, 255),
-    255,
-    80
-  );
-  FastLED.show();
-  */
+      /*
+      leds[0].setHSV(
+        map(axis_list[0].val, -100, 100, 0, 255),
+        255,
+        80
+      );
+      FastLED.show();
+      */
+    }
+  }
+
 }
 
+/**
+ * Vykresleni krizoveho ovladace na joy obrazovce
+ */
 void drawAxis(uint16_t center_x, uint16_t center_y, aAxis *x, aAxis *y, uint16_t color){
   uint8_t w;
 
@@ -513,7 +457,11 @@ void drawAxis(uint16_t center_x, uint16_t center_y, aAxis *x, aAxis *y, uint16_t
  * Prenese canvas na displej
  */
 void displayCanvas(){
+  // zobrazime na displeji
   tft.drawRGBBitmap(0, 0, canvas.getBuffer(), canvas.width(), canvas.height());
+
+  // oznacime jako prekreslene
+  redraw = 0;
 }
 
 /**
@@ -564,40 +512,56 @@ void screenValue(){
   int16_t  x1, y1;
   uint16_t w, h;
 
-  canvas.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, BLACK);
-  canvas.setFont(&FreeSans9pt7b);
-  canvas.setTextColor(BLACK);
+  redraw = 1;
 
-  canvas.fillRect(0, 0, SCREEN_WIDTH, 18, DBLUE);
-  canvas.setCursor(4, 14);
-  canvas.print("ESP-Now");
+  while(1){
+    // vstupy
+    readAllInputs();
 
-  sprintf(str, "%u", now_rx_cnt);
-  canvas.getTextBounds(str, 0, 60, &x1, &y1, &w, &h);
-  canvas.setCursor(SCREEN_WIDTH - 4 - w, 14);
-  canvas.print(str);
+    // zpet na uvod
+    if(joy_b1 == 0){
+      return;
+    }
 
-  canvas.setFont(&FreeSans18pt7b);
-  
-  sprintf(str, "%u", now_message.type);
-  canvas.setCursor(4, 55);
-  canvas.setTextColor(GRAY);
-  canvas.print("V");
-  canvas.getTextBounds(str, 0, 60, &x1, &y1, &w, &h);
-  canvas.setCursor(SCREEN_WIDTH - 4 - w, 55);
-  canvas.setTextColor(WHITE);
-  canvas.print(str);
+    // prekresleni obrazovky
+    if(redraw == 1){
+      canvas.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, BLACK);
+      canvas.setFont(&FreeSans9pt7b);
+      canvas.setTextColor(BLACK);
 
-  sprintf(str, "%.1f", now_message.temperature);
-  canvas.setCursor(4, 91);
-  canvas.setTextColor(GRAY);
-  canvas.print("T");
-  canvas.getTextBounds(str, 0, 60, &x1, &y1, &w, &h);
-  canvas.setCursor(SCREEN_WIDTH - 4 - w, 91);
-  canvas.setTextColor(WHITE);
-  canvas.print(str);
+      canvas.fillRect(0, 0, SCREEN_WIDTH, 18, DBLUE);
+      canvas.setCursor(4, 14);
+      canvas.print("ESP-Now");
 
-  displayCanvas();  
+      sprintf(str, "%u", now_rx_cnt);
+      canvas.getTextBounds(str, 0, 60, &x1, &y1, &w, &h);
+      canvas.setCursor(SCREEN_WIDTH - 4 - w, 14);
+      canvas.print(str);
+
+      canvas.setFont(&FreeSans18pt7b);
+      
+      sprintf(str, "%u", now_message.type);
+      canvas.setCursor(4, 55);
+      canvas.setTextColor(GRAY);
+      canvas.print("V");
+      canvas.getTextBounds(str, 0, 60, &x1, &y1, &w, &h);
+      canvas.setCursor(SCREEN_WIDTH - 4 - w, 55);
+      canvas.setTextColor(WHITE);
+      canvas.print(str);
+
+      sprintf(str, "%.1f", now_message.temperature);
+      canvas.setCursor(4, 91);
+      canvas.setTextColor(GRAY);
+      canvas.print("T");
+      canvas.getTextBounds(str, 0, 60, &x1, &y1, &w, &h);
+      canvas.setCursor(SCREEN_WIDTH - 4 - w, 91);
+      canvas.setTextColor(WHITE);
+      canvas.print(str);
+
+      // na displej
+      displayCanvas();
+    }
+  }
 }
 
 /**
@@ -673,6 +637,10 @@ void screenHome(){
     if(joy_b2 == 0){
       if((Screen)menu_home.item_list[menu_home.sel_item].ident == SCREEN_IMAGE) screenImage();
       if((Screen)menu_home.item_list[menu_home.sel_item].ident == SCREEN_INFO) screenInfo();
+      if((Screen)menu_home.item_list[menu_home.sel_item].ident == SCREEN_ESPNOW) screenValue();
+      if((Screen)menu_home.item_list[menu_home.sel_item].ident == SCREEN_JOYSTICK) screenJoy();
+      if((Screen)menu_home.item_list[menu_home.sel_item].ident == SCREEN_PASAK) appPasak();
+      redraw = 1;
     }
 
     // prekresleni obrazovky

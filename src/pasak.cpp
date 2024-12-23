@@ -88,49 +88,73 @@ void screenPasak(){
 /**
  * Smycka
  */
-void loopPasak(){
+void appPasak(){
   unsigned long millis_act;
+  uint16_t i;
 
-  millis_act = millis();
+  redraw = 1;
 
-  // ovladani led
-  if(axis_list[0].val > 50 && led_state == 0){
-    led_state = 1;
-  }
-  if(axis_list[0].val < -50 && led_state == 1){
-    led_state = 0;
-  }
+  while(1){
+    millis_act = millis();
 
-  // ovladani serva
-  if(millis_act - millis_servo > 50){
-    if(axis_list[2].val > 50 && servo_pos < 100){
-      servo_pos++;
+    readAllInputs();
+
+    if(joy_b1 == 0){
+      return;
     }
-    if(axis_list[2].val < -50 && servo_pos > 0){
-      servo_pos--;
+
+    // zmenila se hodnota osy?
+    for(i = 0; i < 4; i++){
+      if(axis_list[i].changed){
+        // pokud ano tak prekresleni
+        redraw = 1;
+      }
     }
-    millis_servo = millis_act;
-  }
 
-  // posilani rizeni
-  if(millis_act - millis_espnow > 100){
-    if(espnow_sending == 0){
-      message_pasak.type = 0x02;
-      message_pasak.servo = servo_pos;
-      message_pasak.led = led_state;
-      message_pasak.motor_left = map(axis_list[1].val, -100, 100, -255, 255);
-      message_pasak.motor_right = map(axis_list[3].val, -100, 100, -255, 255);
+    // ovladani led
+    if(axis_list[0].val > 50 && led_state == 0){
+      led_state = 1;
+    }
+    if(axis_list[0].val < -50 && led_state == 1){
+      led_state = 0;
+    }
 
-      espnow_sending = 1;
-      esp_err_t result = esp_now_send(mac_pasak, (uint8_t *)&message_pasak, sizeof(message_pasak));
-      
-      if (result == ESP_OK) {
-        espnow_cnt_tx_ok++;
-      } else {
-        espnow_cnt_tx_err++;
-      }    
+    // ovladani serva
+    if(millis_act - millis_servo > 50){
+      if(axis_list[2].val > 50 && servo_pos < 100){
+        servo_pos++;
+      }
+      if(axis_list[2].val < -50 && servo_pos > 0){
+        servo_pos--;
+      }
+      millis_servo = millis_act;
+    }
 
-      millis_espnow = millis_act;
+    // posilani rizeni
+    if(millis_act - millis_espnow > 100){
+      if(espnow_sending == 0){
+        message_pasak.type = 0x02;
+        message_pasak.servo = servo_pos;
+        message_pasak.led = led_state;
+        message_pasak.motor_left = map(axis_list[1].val, -100, 100, -255, 255);
+        message_pasak.motor_right = map(axis_list[3].val, -100, 100, -255, 255);
+
+        espnow_sending = 1;
+        esp_err_t result = esp_now_send(mac_pasak, (uint8_t *)&message_pasak, sizeof(message_pasak));
+        
+        if (result == ESP_OK) {
+          espnow_cnt_tx_ok++;
+        } else {
+          espnow_cnt_tx_err++;
+        }    
+
+        millis_espnow = millis_act;
+      }
+    }
+
+    // obrazovka
+    if(redraw == 1){
+      screenPasak();
     }
   }
 }
