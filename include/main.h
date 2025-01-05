@@ -23,6 +23,8 @@
 #define	COLOR_RED       0xF800
 #define	COLOR_GREEN     0x07E0
 #define	COLOR_BLUE      0x0A58
+#define COLOR_WHITE     0xFFFF
+#define	COLOR_GRAY      0x9CD3
 
 // analogova osa
 struct aAxis {

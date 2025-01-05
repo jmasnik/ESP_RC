@@ -4,7 +4,9 @@
 #include "main.h"
 #include <Fonts/FreeSans18pt7b.h>
 #include <Fonts/FreeSans9pt7b.h>
+#include <Fonts/FreeMonoBold9pt7b.h>
 #include "Roboto_10.h"
+#include "RobotoMonoMedium15.h"
 
 extern GFXcanvas16 canvas;
 
@@ -20,8 +22,6 @@ extern uint8_t joy_b1;
 extern uint8_t joy_b2;
 
 extern void readAllInputs();
-
-
 
 void screenPasak();
 void appPasak();
