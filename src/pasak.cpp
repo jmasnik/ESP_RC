@@ -15,13 +15,38 @@ typedef struct espnow_message_pasak {
   uint8_t servo;
 } espnow_message_pasak;
 
+// funkce ktere muzu nastavovat a skakani mezi nima
+typedef enum {
+  PASAK_FCE_NONE,
+  PASAK_FCE_MAX_PWR,
+  PASAK_FCE_MIN_PWR,
+  PASAK_FCE_LED,
+  PASAK_FCE_SERVO,
+  PASAK_FCE_COUNT
+} PasakFce;
+
+PasakFce operator++(PasakFce& fce){
+    fce = static_cast<PasakFce>((fce + 1) % PASAK_FCE_COUNT);
+    return fce;
+}
+PasakFce operator++(PasakFce& fce, int){
+    PasakFce result = fce;
+    ++fce;
+    return result;
+}
+
+
+PasakFce selected_fce;
+
 espnow_message_pasak message_pasak;
 
 uint8_t mac_pasak[] = { 0x3c, 0x71, 0xbf, 0xff, 0x87, 0x80 };
 
 uint8_t led_state = 1;
 uint8_t servo_pos = 50;
-uint8_t servo_ppos = 1;   // 1 - nahore, 2 - dole malo, 3 - dole hodne
+uint8_t servo_ppos = 1;     // 1 - nahore, 2 - dole malo, 3 - dole hodne
+uint8_t motor_max = 135;    // jakou max. pwm poustet do motoru, nejvic 255
+uint8_t motor_min = 45;     // jakou min. pwm poustet do motoru aby se vubec zacal tocit
 
 /**
  * Vykresleni obrazovky
@@ -95,13 +120,43 @@ void screenPasak(){
   canvas.setCursor(SCREEN_WIDTH - cont_bar_width - 10 - w, 31);
   canvas.print(buff);
 
+  // zvolena fce
+  canvas.setTextColor(COLOR_GRAY);
+  canvas.setCursor(cont_bar_width + 5, 50);
+  strcpy(buff, "");
+  if(selected_fce == PASAK_FCE_NONE) strcpy(buff, "-");
+  if(selected_fce == PASAK_FCE_LED) strcpy(buff, "LED");
+  if(selected_fce == PASAK_FCE_SERVO) strcpy(buff, "Servo");
+  if(selected_fce == PASAK_FCE_MAX_PWR) strcpy(buff, "MaxP");
+  if(selected_fce == PASAK_FCE_MIN_PWR) strcpy(buff, "MinP");
+  canvas.print(buff);
+
+  // hodnota od funkce
+  canvas.setTextColor(COLOR_WHITE);
+
+  strcpy(buff, " ");
+  if(selected_fce == PASAK_FCE_LED){
+    if(led_state == 1) strcpy(buff, "ON");
+    if(led_state == 0) strcpy(buff, "OFF");
+  }
+  if(selected_fce == PASAK_FCE_MAX_PWR){
+    sprintf(buff, "%u", motor_max);
+  }
+  if(selected_fce == PASAK_FCE_MIN_PWR){
+    sprintf(buff, "%u", motor_min);
+  }
+
+  canvas.getTextBounds(buff, 0, 0, &x1, &y1, &w, &h);
+  canvas.setCursor(SCREEN_WIDTH - cont_bar_width - 10 - w, 50);
+  canvas.print(buff);
+
   // texty male
   canvas.setFont(&Roboto_10);
   canvas.setTextColor(COLOR_WHITE);
 
-  // kolik jsme poslali zprav
-  canvas.setCursor(20, 78);
-  canvas.print(espnow_cnt_tx_ok);
+  // kolik jsme nedorucili zpravu
+  canvas.setCursor(24, 81);
+  canvas.print(espnow_cnt_del_err);
   
   // procento uspesnych zprav
   strcpy(buff, "-");
@@ -111,7 +166,7 @@ void screenPasak(){
   }
   
   canvas.getTextBounds(buff, 0, 0, &x1, &y1, &w, &h);
-  canvas.setCursor(SCREEN_WIDTH - cont_bar_width - 10 - w, 78);
+  canvas.setCursor(SCREEN_WIDTH - cont_bar_width - 10 - w, 81);
   canvas.print(buff);
 
   // graf uspesnych
@@ -148,6 +203,7 @@ void appPasak(){
   espnow_cnt_tx_ok = 0;
   espnow_cnt_del_ok = 0;
   espnow_cnt_del_err = 0;
+  selected_fce = PASAK_FCE_NONE;
 
   redraw = 1;
 
@@ -167,6 +223,11 @@ void appPasak(){
       return;
     }
 
+    if(joy_b2 == 0 && millis_act - millis_pasak_start > 1000){
+      selected_fce++;
+      redraw = 1;
+    }
+
     // zmenila se hodnota osy?
     for(i = 0; i < 4; i++){
       if(axis_list[i].changed){
@@ -176,14 +237,41 @@ void appPasak(){
     }
 
     // ovladani led
-    if(axis_list[0].val > 50 && led_state == 0){
-      led_state = 1;
+    if(selected_fce == PASAK_FCE_LED){
+      if(axis_list[2].val > 50 && led_state == 0){
+        led_state = 1;
+      }
+      if(axis_list[2].val < -50 && led_state == 1){
+        led_state = 0;
+      }
     }
-    if(axis_list[0].val < -50 && led_state == 1){
-      led_state = 0;
+
+    // nastavovani max power
+    if(selected_fce == PASAK_FCE_MAX_PWR){
+      if(axis_list[2].val < -50 && motor_max > motor_min){
+        motor_max--;
+        redraw = 1;
+      }
+      if(axis_list[2].val > 50 && motor_max < 255){
+        motor_max++;
+        redraw = 1;
+      }
+    }
+
+    // nastavovani min power
+    if(selected_fce == PASAK_FCE_MIN_PWR){
+      if(axis_list[2].val < -50 && motor_min > 0){
+        motor_min--;
+        redraw = 1;
+      }
+      if(axis_list[2].val > 50 && motor_min < motor_max){
+        motor_min++;
+        redraw = 1;
+      }
     }
 
     // ovladani serva
+    /*
     if(axis_list[2].val > -10 && axis_list[2].val < 10){
       can_change_servo = 1;
     }
@@ -197,6 +285,7 @@ void appPasak(){
         can_change_servo = 0;
       }
     }
+    */
 
     /*
     if(millis_act - millis_servo > 50){
@@ -221,8 +310,28 @@ void appPasak(){
         message_pasak.type = 0x02;
         message_pasak.servo = servo_pos;
         message_pasak.led = led_state;
-        message_pasak.motor_left = map(axis_list[1].val, -100, 100, -255, 255);
-        message_pasak.motor_right = map(axis_list[3].val, -100, 100, -255, 255);
+
+        if(axis_list[1].val > 0){
+          message_pasak.motor_left = map(axis_list[1].val, 1, 100, motor_min, motor_max);
+        }
+        if(axis_list[1].val == 0){
+          message_pasak.motor_left = 0;
+        }
+        if(axis_list[1].val < 0){
+          message_pasak.motor_left = map(axis_list[1].val, -100, -1, -motor_max, -motor_min);
+        }
+        //message_pasak.motor_left = map(axis_list[1].val, -100, 100, -motor_max, motor_max);
+        
+        if(axis_list[3].val > 0){
+          message_pasak.motor_right = map(axis_list[3].val, 1, 100, motor_min, motor_max);
+        }
+        if(axis_list[3].val == 0){
+          message_pasak.motor_right = 0;
+        }
+        if(axis_list[3].val < 0){
+          message_pasak.motor_right = map(axis_list[3].val, -100, -1, -motor_max, -motor_min);
+        }        
+        //message_pasak.motor_right = map(axis_list[3].val, -100, 100, -motor_max, motor_max);
 
         espnow_sending = 1;
         esp_err_t result = esp_now_send(mac_pasak, (uint8_t *)&message_pasak, sizeof(message_pasak));
