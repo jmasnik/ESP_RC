@@ -145,6 +145,9 @@ void screenPasak(){
   if(selected_fce == PASAK_FCE_MIN_PWR){
     sprintf(buff, "%u", motor_min);
   }
+  if(selected_fce == PASAK_FCE_SERVO){
+    sprintf(buff, "%u", servo_ppos);
+  }
 
   canvas.getTextBounds(buff, 0, 0, &x1, &y1, &w, &h);
   canvas.setCursor(SCREEN_WIDTH - cont_bar_width - 10 - w, 50);
@@ -271,21 +274,21 @@ void appPasak(){
     }
 
     // ovladani serva
-    /*
-    if(axis_list[2].val > -10 && axis_list[2].val < 10){
-      can_change_servo = 1;
-    }
-    if(can_change_servo == 1){
-      if(axis_list[2].val < -50){
-        if(servo_ppos < 3) servo_ppos++;
-        can_change_servo = 0;
+    if(selected_fce == PASAK_FCE_SERVO){
+      if(axis_list[2].val > -10 && axis_list[2].val < 10){
+        can_change_servo = 1;
       }
-      if(axis_list[2].val > 50){
-        if(servo_ppos > 1) servo_ppos--;
-        can_change_servo = 0;
+      if(can_change_servo == 1){
+        if(axis_list[2].val < -50){
+          if(servo_ppos < 3) servo_ppos++;
+          can_change_servo = 0;
+        }
+        if(axis_list[2].val > 50){
+          if(servo_ppos > 1) servo_ppos--;
+          can_change_servo = 0;
+        }
       }
     }
-    */
 
     /*
     if(millis_act - millis_servo > 50){

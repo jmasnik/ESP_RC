@@ -5,6 +5,7 @@
 #include <Fonts/FreeSans18pt7b.h>
 #include <Fonts/FreeSans9pt7b.h>
 #include <WiFi.h>
+#include <WiFiUdp.h>
 #include <esp_wifi.h>
 #include <esp_now.h>
 #include <FastLED.h>
@@ -32,9 +33,14 @@
 #define CS_PIN   10
 #define RST_PIN  18
 
+#define LOCAL_UDP_PORT 4210
+
 CRGB leds[NUM_LEDS];
 
 Adafruit_SSD1351 tft = Adafruit_SSD1351(SCREEN_WIDTH, SCREEN_HEIGHT, CS_PIN, DC_PIN, MOSI_PIN, SCLK_PIN, RST_PIN); 
+
+// UDP
+WiFiUDP Udp;
 
 uint8_t redraw;
 unsigned long millis_redraw;
@@ -61,7 +67,8 @@ typedef enum {
   SCREEN_PASAK,
   SCREEN_HOME,
   SCREEN_INFO,
-  SCREEN_IMAGE
+  SCREEN_IMAGE,
+  SCREEN_MIKUL
 } Screen;
 
 Screen screen;
@@ -128,6 +135,7 @@ void drawAxis(uint16_t center_x, uint16_t center_y, aAxis *x, aAxis *y, uint16_t
 
 void initWifi();
 void initESPNow();
+void initUDP();
 
 void readMacAddress();
 
@@ -227,6 +235,7 @@ void setup() {
 
   initWifi();
   initESPNow();
+  initUDP();
 
   readMacAddress();
 
@@ -245,6 +254,7 @@ void setup() {
 
   menuInit(&menu_home);
   addMenuItemStr(&menu_home, "Pasak", SCREEN_PASAK);
+  addMenuItemStr(&menu_home, "Mikul", SCREEN_MIKUL);
   addMenuItemStr(&menu_home, "ESPNow", SCREEN_ESPNOW);
   addMenuItemStr(&menu_home, "Joystick", SCREEN_JOYSTICK);
   addMenuItemStr(&menu_home, "Info", SCREEN_INFO);
@@ -613,10 +623,30 @@ void menuDraw(mMenu *menu){
 void screenHome(){
   unsigned long millis_act;
   unsigned long millis_last_input;
+  char incomingPacket[255];
 
   millis_last_input = 0;
 
   while(1){
+
+    int packetSize = Udp.parsePacket();
+
+    if (packetSize){
+      // receive incoming UDP packets
+      log_d("Received %d bytes from %s, port %d", packetSize, Udp.remoteIP().toString().c_str(), Udp.remotePort());
+
+      int len = Udp.read(incomingPacket, 255);
+      if (len > 0){
+        incomingPacket[len] = '\0';
+
+        log_d("UDP packet contents: %s", incomingPacket);
+
+          Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
+          Udp.print("zpet");
+          Udp.endPacket();
+      }      
+    }
+
     millis_act = millis();
     readAllInputs();
 
@@ -697,4 +727,14 @@ void menuInit(mMenu *menu){
   menu->per_page = 4;
   menu->shift = 0;
   menu->sel_item = 0;
+}
+
+/**
+ * Unicializace prijmu UDP
+ */
+void initUDP(){
+  // UDP
+  Udp.begin(LOCAL_UDP_PORT);
+  //WiFi.localIP()
+  log_d("Now listening at IP %s, UDP port %d\n", WiFi.softAPIP().toString().c_str(), LOCAL_UDP_PORT);  
 }
