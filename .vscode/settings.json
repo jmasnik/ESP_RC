@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "freesans18pt7b.h": "c",
+        "freesans9pt7b.h": "c",
+        "arduino.h": "c"
+    }
+}

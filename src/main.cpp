@@ -12,8 +12,11 @@
 
 #include "images.h"
 #include "Roboto_10.h"
+
 #include "main.h"
 #include "pasak.h"
+#include "mikul.h"
+#include "espnowapp.h"
 
 #define NUM_LEDS 1
 #define LED_PIN 48
@@ -95,7 +98,13 @@ void menuUp(mMenu *menu);
 void menuDown(mMenu *menu);
 void menuInit(mMenu *menu);
 
+//void uartPrint(const char *str);
+
 uint16_t now_rx_cnt;
+
+rxNowMsg now_rx_buff[RX_NOW_BUFF_LEN];
+
+uint8_t now_rx_pos;
 
 typedef struct struct_message {
     char a[32];
@@ -147,11 +156,20 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status);
  */
 void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
   
+  // pocet prijatych zprav
   now_rx_cnt++;
 
-  if(len == sizeof(now_message) && incomingData[0] == 0x01){
-    memcpy(&now_message, incomingData, sizeof(now_message));
-    redraw = 1;
+  // ulozime si data do bufferu
+  now_rx_buff[now_rx_pos].tm = millis();
+  now_rx_buff[now_rx_pos].len = len;
+  now_rx_buff[now_rx_pos].proc = 1;
+  memcpy(now_rx_buff[now_rx_pos].mac, mac, 6);
+  memcpy(now_rx_buff[now_rx_pos].msg, incomingData, len);
+
+  // dalsi misto v bufferu
+  now_rx_pos++;
+  if(now_rx_pos == RX_NOW_BUFF_LEN){
+    now_rx_pos = 0;
   }
 
   // bliknuti LED
@@ -181,6 +199,8 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
  * Setup
  */
 void setup() {
+  uint16_t i;
+
   now_rx_cnt = 0;
   redraw = 1;
   millis_redraw = 0;
@@ -192,6 +212,13 @@ void setup() {
   espnow_cnt_tx_err = 0;
   espnow_cnt_del_ok = 0;
   espnow_cnt_del_err = 0;
+
+  // vynulovani espnow rx bufferu
+  now_rx_pos = 0;
+  for(i = 0; i < RX_NOW_BUFF_LEN; i++){
+    now_rx_buff[i].len = 0;
+    now_rx_buff[i].proc = 0;
+  }
 
   screen = SCREEN_HOME;
 
@@ -667,7 +694,8 @@ void screenHome(){
     if(joy_b2 == 0){
       if((Screen)menu_home.item_list[menu_home.sel_item].ident == SCREEN_IMAGE) screenImage();
       if((Screen)menu_home.item_list[menu_home.sel_item].ident == SCREEN_INFO) screenInfo();
-      if((Screen)menu_home.item_list[menu_home.sel_item].ident == SCREEN_ESPNOW) screenValue();
+      //if((Screen)menu_home.item_list[menu_home.sel_item].ident == SCREEN_ESPNOW) screenValue();
+      if((Screen)menu_home.item_list[menu_home.sel_item].ident == SCREEN_ESPNOW) appESPNow();
       if((Screen)menu_home.item_list[menu_home.sel_item].ident == SCREEN_JOYSTICK) screenJoy();
       if((Screen)menu_home.item_list[menu_home.sel_item].ident == SCREEN_PASAK) appPasak();
       redraw = 1;
@@ -737,4 +765,8 @@ void initUDP(){
   Udp.begin(LOCAL_UDP_PORT);
   //WiFi.localIP()
   log_d("Now listening at IP %s, UDP port %d\n", WiFi.softAPIP().toString().c_str(), LOCAL_UDP_PORT);  
+}
+
+void uartPrint(const char *str){
+  log_d("%s", str);
 }

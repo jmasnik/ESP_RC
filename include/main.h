@@ -26,8 +26,10 @@
 #define COLOR_WHITE     0xFFFF
 #define	COLOR_GRAY      0x9CD3
 
+#define RX_NOW_BUFF_LEN 10
+
 // analogova osa
-struct aAxis {
+typedef struct aAxis {
   uint8_t pin;            // pin
   int8_t val;             // hodnota -100 az 100
   int8_t val_prev;        // predchozi hodnota
@@ -35,8 +37,17 @@ struct aAxis {
   uint16_t zero_to;       // nula do
   uint8_t changed;        // doslo od minula ka zmene
   uint16_t val_a;         // neprepocitavana hodnota
-};
+} aAxis;
+
+typedef struct rxNowMsg {
+  uint8_t mac[6];
+  int len;
+  uint8_t msg[512];
+  unsigned long tm;
+  uint8_t proc;
+} rxNowMsg;
 
 void displayCanvas();
+void uartPrint(const char *str);
 
 #endif
