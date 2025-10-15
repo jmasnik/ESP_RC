@@ -138,7 +138,6 @@ void screenImage();
 void screenJoy();
 
 void readAxis(aAxis *axis);
-void readAllInputs();
 
 void drawAxis(uint16_t center_x, uint16_t center_y, aAxis *x, aAxis *y, uint16_t color);
 
@@ -542,66 +541,6 @@ void screenImage(){
 }
 
 /**
- * Obrazovka s hodnotou
- */
-void screenValue(){
-  char str[10];
-  int16_t  x1, y1;
-  uint16_t w, h;
-
-  redraw = 1;
-
-  while(1){
-    // vstupy
-    readAllInputs();
-
-    // zpet na uvod
-    if(joy_b1 == 0){
-      return;
-    }
-
-    // prekresleni obrazovky
-    if(redraw == 1){
-      canvas.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, BLACK);
-      canvas.setFont(&FreeSans9pt7b);
-      canvas.setTextColor(BLACK);
-
-      canvas.fillRect(0, 0, SCREEN_WIDTH, 18, DBLUE);
-      canvas.setCursor(4, 14);
-      canvas.print("ESP-Now");
-
-      sprintf(str, "%u", now_rx_cnt);
-      canvas.getTextBounds(str, 0, 60, &x1, &y1, &w, &h);
-      canvas.setCursor(SCREEN_WIDTH - 4 - w, 14);
-      canvas.print(str);
-
-      canvas.setFont(&FreeSans18pt7b);
-      
-      sprintf(str, "%u", now_message.type);
-      canvas.setCursor(4, 55);
-      canvas.setTextColor(GRAY);
-      canvas.print("V");
-      canvas.getTextBounds(str, 0, 60, &x1, &y1, &w, &h);
-      canvas.setCursor(SCREEN_WIDTH - 4 - w, 55);
-      canvas.setTextColor(WHITE);
-      canvas.print(str);
-
-      sprintf(str, "%.1f", now_message.temperature);
-      canvas.setCursor(4, 91);
-      canvas.setTextColor(GRAY);
-      canvas.print("T");
-      canvas.getTextBounds(str, 0, 60, &x1, &y1, &w, &h);
-      canvas.setCursor(SCREEN_WIDTH - 4 - w, 91);
-      canvas.setTextColor(WHITE);
-      canvas.print(str);
-
-      // na displej
-      displayCanvas();
-    }
-  }
-}
-
-/**
  * Pridani polozky do menu
  */
 void addMenuItemStr(mMenu *menu, const char *str, uint8_t ident){
@@ -769,4 +708,28 @@ void initUDP(){
 
 void uartPrint(const char *str){
   log_d("%s", str);
+}
+
+/**
+ * Jedna radku mensiho textu
+ */
+void canvasTextLine(const char *str, uint8_t line, uint8_t align){
+  int16_t  x1, y1;
+  uint16_t w, h;
+
+  if(line < 1 || line > 3) return;
+
+  //canvas.setFont(&FreeSans9pt7b);
+  canvas.setFont(&Roboto_Mono_Medium_15);
+  canvas.setTextColor(WHITE);
+
+  if(align == ALIGN_LEFT){
+    canvas.setCursor(4, 38 + 24 * (line - 1));
+  }
+  if(align == ALIGN_RIGHT){
+    canvas.getTextBounds(str, 0, 60, &x1, &y1, &w, &h);
+    canvas.setCursor(SCREEN_WIDTH - 4 - w, 38 + 24 * (line - 1));
+  }
+
+  canvas.print(str);
 }

@@ -28,6 +28,9 @@
 
 #define RX_NOW_BUFF_LEN 10
 
+#define ALIGN_LEFT 0
+#define ALIGN_RIGHT 1
+
 // analogova osa
 typedef struct aAxis {
   uint8_t pin;            // pin
@@ -47,7 +50,9 @@ typedef struct rxNowMsg {
   uint8_t proc;
 } rxNowMsg;
 
+void canvasTextLine(const char *str, uint8_t line, uint8_t align);
 void displayCanvas();
 void uartPrint(const char *str);
+void readAllInputs();
 
 #endif
