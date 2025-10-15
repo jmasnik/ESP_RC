@@ -23,7 +23,7 @@ typedef struct espnow_message_sensbat_head {
 
 // espnow zprava - struktura dat
 typedef struct espnow_message_sensbat_data {
-  char ident[4];
+  char ident[8];
   float value;
 } espnow_message_sensbat_data;
 
@@ -85,7 +85,7 @@ void screenESPNow(){
     idx = (act_screen - 2) * 2;
 
     // prvni hodnota
-    canvas.setFont(&FreeSans9pt7b);
+    canvas.setFont(&Roboto_Mono_Medium_15);
     canvas.setCursor(4, 55);
     canvas.setTextColor(GRAY);
     canvas.print(str_ident[idx]);
@@ -97,7 +97,7 @@ void screenESPNow(){
     canvas.print(str_val[idx]);
 
     // druha hodnota
-    canvas.setFont(&FreeSans9pt7b);
+    canvas.setFont(&Roboto_Mono_Medium_15);
     canvas.setCursor(4, 91);
     canvas.setTextColor(GRAY);
     canvas.print(str_ident[idx + 1]);

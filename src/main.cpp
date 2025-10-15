@@ -2,8 +2,6 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1351.h>
 #include <SPI.h>
-#include <Fonts/FreeSans18pt7b.h>
-#include <Fonts/FreeSans9pt7b.h>
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include <esp_wifi.h>
@@ -11,7 +9,6 @@
 #include <FastLED.h>
 
 #include "images.h"
-#include "Roboto_10.h"
 
 #include "main.h"
 #include "pasak.h"

@@ -5,6 +5,11 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1351.h>
 
+#include "RobotoMonoMedium15.h"
+#include "Roboto_10.h"
+#include <Fonts/FreeSans18pt7b.h>
+#include <Fonts/FreeSans9pt7b.h>
+
 #define SCREEN_WIDTH  128
 #define SCREEN_HEIGHT 96
 
