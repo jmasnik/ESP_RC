@@ -2,5 +2,6 @@
 #define MIKUL_H
 
 void appMikul();
+void initMikul();
 
 #endif

@@ -290,11 +290,11 @@ void setup() {
  */
 void initWifi(){
   // TODO: udelat scan a hodit se na channel ktery neni obsazeny
-  //WiFi.mode(WIFI_STA);
-  WiFi.mode(WIFI_AP_STA);
+  WiFi.mode(WIFI_AP);
 
   WiFi.softAPsetHostname("mcontroller");
-  WiFi.softAP("mController", "heslo123", 10);
+  //WiFi.softAP("mController", "heslo123", 10);
+  WiFi.softAP("mController", NULL, 10, 0);
   
   WiFi.begin();
 }
@@ -586,29 +586,45 @@ void menuDraw(mMenu *menu){
 void screenHome(){
   unsigned long millis_act;
   unsigned long millis_last_input;
-  char incomingPacket[255];
+  char incomingPacket[1500];
+  uint16_t i;
+  uint8_t image[4000];
+  uint8_t y;
+  uint16_t ii;
 
   millis_last_input = 0;
 
   while(1){
 
+    /*
     int packetSize = Udp.parsePacket();
 
     if (packetSize){
       // receive incoming UDP packets
-      log_d("Received %d bytes from %s, port %d", packetSize, Udp.remoteIP().toString().c_str(), Udp.remotePort());
+      //log_d("Received %d bytes from %s, port %d", packetSize, Udp.remoteIP().toString().c_str(), Udp.remotePort());
 
-      int len = Udp.read(incomingPacket, 255);
+      int len = Udp.read(incomingPacket, packetSize);
       if (len > 0){
-        incomingPacket[len] = '\0';
+        //incomingPacket[len] = '\0';
 
-        log_d("UDP packet contents: %s", incomingPacket);
+        //log_d("UDP packet contents: %02x %02x", incomingPacket[0], incomingPacket[1]);
 
-          Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
-          Udp.print("zpet");
-          Udp.endPacket();
+        if(incomingPacket[0] == 0xF0){
+          ii = 0;
+          for(i = 2; i < len; i = i + 2){
+            image[ii] = incomingPacket[i+1];
+            image[ii + 1] = incomingPacket[i];
+            ii = ii + 2;
+          }
+          
+          y = 16 + incomingPacket[1] * 7;
+          
+          tft.drawRGBBitmap(16, y, (uint16_t*)image, 96, 7);
+        }
+
       }      
     }
+    */
 
     millis_act = millis();
     readAllInputs();
@@ -630,10 +646,10 @@ void screenHome(){
     if(joy_b2 == 0){
       if((Screen)menu_home.item_list[menu_home.sel_item].ident == SCREEN_IMAGE) screenImage();
       if((Screen)menu_home.item_list[menu_home.sel_item].ident == SCREEN_INFO) screenInfo();
-      //if((Screen)menu_home.item_list[menu_home.sel_item].ident == SCREEN_ESPNOW) screenValue();
       if((Screen)menu_home.item_list[menu_home.sel_item].ident == SCREEN_ESPNOW) appESPNow();
       if((Screen)menu_home.item_list[menu_home.sel_item].ident == SCREEN_JOYSTICK) screenJoy();
       if((Screen)menu_home.item_list[menu_home.sel_item].ident == SCREEN_PASAK) appPasak();
+      if((Screen)menu_home.item_list[menu_home.sel_item].ident == SCREEN_MIKUL) appMikul();
       redraw = 1;
     }
 
