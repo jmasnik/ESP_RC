@@ -24,6 +24,7 @@
 #define PIN_JOY4 7
 #define PIN_JOY_B1 15
 #define PIN_JOY_B2 16
+#define PIN_BOOT 0
 #define ADC_READ_CNT 3
 
 // The SSD1351 is connected like this (plus VCC plus GND)
@@ -60,6 +61,7 @@ uint16_t aval_joy3;
 uint16_t aval_joy4;
 uint8_t joy_b1;
 uint8_t joy_b2;
+uint8_t btn_b3;
 
 typedef enum {
   SCREEN_JOYSTICK,
@@ -250,8 +252,10 @@ void setup() {
   axis_list[3].zero_from = 2070;
   axis_list[3].zero_to = 2080;
 
+  // tlacitka
   pinMode(PIN_JOY_B1, INPUT_PULLUP);
   pinMode(PIN_JOY_B2, INPUT_PULLUP);
+  pinMode(PIN_BOOT, INPUT_PULLUP);
 
   // seriak
   Serial.begin(115200);  
@@ -531,7 +535,7 @@ void screenImage(){
 
   while(1){
     readAllInputs();
-    if(joy_b1 == 0){
+    if(btn_b3 == 0){
       return;
     }
   }
@@ -679,6 +683,7 @@ void readAllInputs(){
   // tlacitka
   joy_b1 = digitalRead(PIN_JOY_B1);
   joy_b2 = digitalRead(PIN_JOY_B2);
+  btn_b3 = digitalRead(PIN_BOOT);
 }
 
 /**
