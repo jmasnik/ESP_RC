@@ -6,7 +6,7 @@
 #include <Adafruit_SSD1351.h>
 #include <WiFiUdp.h>
 
-#define TO_MIKUL_INTERVAL 50       // 20 Hz
+#define TO_MIKUL_INTERVAL 40       // 25 Hz
 
 extern GFXcanvas16 canvas;
 
@@ -52,6 +52,11 @@ void appMikul()
     uint8_t packet[20];
     mikulControls mikul_controls;
     char buff[100];
+    int8_t rssi;
+    unsigned long millis_text;
+
+    millis_text = 0;
+    rssi = 0;
 
     // inicializace
     initMikul();
@@ -78,9 +83,11 @@ void appMikul()
                 //log_d("UDP packet contents: %02x %02x", incomingPacket[0], incomingPacket[1]);
 
                 if(incomingPacket[0] == 0xF0){
+                    rssi = incomingPacket[2];
+
                     // prohozeni bytu - prijdou opacne
                     ii = 0;
-                    for(i = 2; i < len; i = i + 2){
+                    for(i = 3; i < len; i = i + 2){
                         image[ii] = incomingPacket[i+1];
                         image[ii + 1] = incomingPacket[i];
                         ii = ii + 2;
@@ -98,14 +105,6 @@ void appMikul()
 
             }      
         }
-
-        /*
-                    //tft.getTextBounds(buff, 0, 0, &x1, &y1, &w, &h);
-                    tft.fillRect(0, SCREEN_HEIGHT - 15, SCREEN_WIDTH, 15, BLACK);
-                    tft.setCursor(0, 92);
-                    sprintf(buff, "%lu", rx_img_cnt);
-                    tft.print(buff);
-        */
 
         // cas aktualni
         act_millis = millis();
@@ -135,15 +134,25 @@ void appMikul()
             to_mikul_last = act_millis;
         }
 
+        // Zobrazovani RSSI
+        if(act_millis - millis_text > 1000){
+            millis_text = act_millis;
+            
+            tft.fillRect(0, SCREEN_HEIGHT - 15, 64, 15, BLACK);
+            tft.setCursor(0, 92);
+            sprintf(buff, "RSSI %d", rssi);
+            tft.print(buff);
+        }
+
         // stisknuti leveho joye
         if(joy_b1 == 0 && act_millis - motor_state_millis > 500){
             if(motor_state == 0){
                 motor_send = axis_list[1].val;
                 motor_state = 1;
-                tft.fillRect(0, 0, 10, 10, COLOR_RED);
+                tft.fillRect(0, 0, 6, 6, COLOR_RED);
             } else if(motor_state == 1){
                 motor_state = 0;
-                tft.fillRect(0, 0, 10, 10, COLOR_GREEN);
+                tft.fillRect(0, 0, 6, 6, COLOR_GREEN);
             }
             motor_state_millis = act_millis;
         }
@@ -175,7 +184,7 @@ void initMikul(){
     tft.setCursor(0, 92);
     tft.print("Mikul");
 
-    tft.fillRect(0, 0, 10, 10, COLOR_GREEN);
+    tft.fillRect(0, 0, 6, 6, COLOR_GREEN);
 
     // neposilame data na lod
     to_mikul_active = 0;
