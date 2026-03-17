@@ -83,6 +83,7 @@ void appMikul()
                 //log_d("UDP packet contents: %02x %02x", incomingPacket[0], incomingPacket[1]);
 
                 if(incomingPacket[0] == 0xF0){
+                    // rssi
                     rssi = incomingPacket[2];
 
                     // prohozeni bytu - prijdou opacne
@@ -94,10 +95,10 @@ void appMikul()
                     }
                     
                     // ktera cast obrazku to je
-                    y = 1 + incomingPacket[1] * 7;
+                    y = incomingPacket[1] * 5;
                     
                     // vykresleni te casti
-                    tft.drawRGBBitmap(16, y, (uint16_t*)image, 96, 7);
+                    tft.drawRGBBitmap(0, y, (uint16_t*)image, 128, 5);
 
                     // pocet prijatych obrazu
                     rx_img_cnt++;
@@ -149,10 +150,10 @@ void appMikul()
             if(motor_state == 0){
                 motor_send = axis_list[1].val;
                 motor_state = 1;
-                tft.fillRect(0, 0, 6, 6, COLOR_RED);
+                tft.fillRect(128 - 6, 96 - 6, 6, 6, COLOR_RED);
             } else if(motor_state == 1){
                 motor_state = 0;
-                tft.fillRect(0, 0, 6, 6, COLOR_GREEN);
+                tft.fillRect(128 - 6, 96 - 6, 6, 6, COLOR_GREEN);
             }
             motor_state_millis = act_millis;
         }
@@ -175,7 +176,7 @@ void initMikul(){
 
     // smazeme obrazovku
     canvas.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, BLACK);
-    canvas.drawRect(15, 0, 98, 72, COLOR_DARK_GRAY);
+    canvas.drawRect(0, 0, 128, 70, COLOR_DARK_GRAY);
     displayCanvas();
 
     tft.setFont(&Roboto_10);
@@ -184,7 +185,7 @@ void initMikul(){
     tft.setCursor(0, 92);
     tft.print("Mikul");
 
-    tft.fillRect(0, 0, 6, 6, COLOR_GREEN);
+    tft.fillRect(128 - 6, 96 - 6, 6, 6, COLOR_GREEN);
 
     // neposilame data na lod
     to_mikul_active = 0;
